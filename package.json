@@ -1,0 +1,12 @@
+{
+  "name": "gitleet",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev:mcp": "node ./mcp/server.js",
+    "build": "bash ./scripts/build.sh",
+    "zip": "bash ./scripts/zip.sh"
+  }
+}
+

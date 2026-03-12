@@ -1,0 +1,124 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GitLeet</title>
+    <style>
+      :root {
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto,
+          Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      }
+      body {
+        margin: 0;
+        padding: 12px;
+        width: 360px;
+        color: #111827;
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .title {
+        font-weight: 700;
+        font-size: 14px;
+      }
+      .muted {
+        color: #6b7280;
+        font-size: 12px;
+      }
+      button {
+        cursor: pointer;
+        border: 1px solid #e5e7eb;
+        background: #111827;
+        color: white;
+        padding: 8px 10px;
+        border-radius: 8px;
+        font-size: 12px;
+      }
+      button.secondary {
+        background: white;
+        color: #111827;
+      }
+      button:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+      .card {
+        margin-top: 10px;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        padding: 10px;
+      }
+      .list {
+        margin: 8px 0 0 0;
+        padding: 0;
+        list-style: none;
+      }
+      .list li {
+        display: flex;
+        gap: 8px;
+        align-items: baseline;
+        justify-content: space-between;
+        padding: 6px 0;
+        border-top: 1px solid #f3f4f6;
+      }
+      .list li:first-child {
+        border-top: 0;
+      }
+      a {
+        color: #2563eb;
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      .pill {
+        font-size: 11px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        border: 1px solid #e5e7eb;
+        background: #f9fafb;
+      }
+      .error {
+        color: #b91c1c;
+        font-size: 12px;
+        margin-top: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="row">
+      <div>
+        <div class="title">GitLeet</div>
+        <div id="status" class="muted">Loading…</div>
+      </div>
+      <span id="linkedPill" class="pill" style="display: none">Linked</span>
+    </div>
+
+    <div class="card">
+      <div class="row">
+        <button id="pushBtn">Push last submission</button>
+        <button id="openOptionsBtn" class="secondary">Options</button>
+      </div>
+      <div id="msg" class="muted" style="margin-top: 8px"></div>
+      <div id="err" class="error" style="display: none"></div>
+    </div>
+
+    <div class="card">
+      <div class="row">
+        <div class="title">Recent syncs</div>
+        <div class="muted">Last 3</div>
+      </div>
+      <ul id="recentList" class="list"></ul>
+      <div id="recentEmpty" class="muted" style="margin-top: 8px; display: none">
+        No syncs yet.
+      </div>
+    </div>
+
+    <script type="module" src="./popup.js"></script>
+  </body>
+</html>
+

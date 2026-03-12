@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "notes": "GitLeet MCP schema mapping for normalizing captured LeetCode submissions.",
+  "paths": {
+    "graphqlOperationName": ["graphqlOperationName", "operationName"],
+    "status": ["data.submissionDetails.statusDisplay", "data.submissionDetails.status_display", "data.runCode.status_msg", "data.submitCode.status_msg", "status_msg"],
+    "runtimeMs": ["data.submissionDetails.runtime", "data.submissionDetails.runtime_ms", "data.runCode.runtime", "runtime"],
+    "memoryMb": ["data.submissionDetails.memory", "data.submissionDetails.memory_mb", "data.runCode.memory", "memory"],
+    "runtimeBeats": ["data.submissionDetails.runtimePercentile", "data.submissionDetails.runtime_percentile", "runtime_percentile", "data.submissionDetails.runtimeBeats"],
+    "memoryBeats": ["data.submissionDetails.memoryPercentile", "data.submissionDetails.memory_percentile", "memory_percentile", "data.submissionDetails.memoryBeats"],
+    "title": ["data.question.title", "data.questionTitle", "title"],
+    "slug": ["data.question.titleSlug", "data.questionTitleSlug", "titleSlug", "slug"],
+    "difficulty": ["data.question.difficulty", "difficulty"],
+    "language": ["submit.language", "submit.request.lang", "lang", "language"],
+    "code": ["submit.code", "submit.request.typed_code", "typed_code", "code"]
+  }
+}
+

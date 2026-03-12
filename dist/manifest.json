@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "GitLeet",
+  "version": "0.1.0",
+  "description": "Sync LeetCode accepted submissions to GitHub.",
+  "action": {
+    "default_title": "GitLeet",
+    "default_popup": "popup/popup.html"
+  },
+  "options_page": "options/options.html",
+  "permissions": ["storage"],
+  "host_permissions": ["https://leetcode.com/*", "https://api.github.com/*"],
+  "background": {
+    "service_worker": "src/background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://leetcode.com/*"],
+      "js": ["src/content.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["src/inject.js", "src/schemaAdapter.js", "src/mcpClient.js"],
+      "matches": ["https://leetcode.com/*"]
+    }
+  ]
+}
+

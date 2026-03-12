@@ -1,0 +1,136 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GitLeet Options</title>
+    <style>
+      :root {
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto,
+          Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      }
+      body {
+        margin: 0;
+        padding: 16px;
+        color: #111827;
+        max-width: 780px;
+      }
+      .title {
+        font-weight: 800;
+        font-size: 18px;
+      }
+      .muted {
+        color: #6b7280;
+        font-size: 12px;
+      }
+      label {
+        display: block;
+        font-size: 12px;
+        font-weight: 700;
+        margin: 14px 0 6px;
+      }
+      input {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 10px 10px;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        font-size: 14px;
+      }
+      .row {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        align-items: center;
+        margin-top: 14px;
+      }
+      button {
+        cursor: pointer;
+        border: 1px solid #e5e7eb;
+        background: #111827;
+        color: white;
+        padding: 10px 12px;
+        border-radius: 10px;
+        font-size: 13px;
+      }
+      button.secondary {
+        background: white;
+        color: #111827;
+      }
+      .card {
+        margin-top: 16px;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 12px;
+      }
+      .ok {
+        color: #047857;
+        font-size: 13px;
+      }
+      .error {
+        color: #b91c1c;
+        font-size: 13px;
+      }
+      .checkboxRow {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        margin-top: 12px;
+      }
+      input[type="checkbox"] {
+        width: auto;
+      }
+      code {
+        background: #f3f4f6;
+        padding: 1px 6px;
+        border-radius: 6px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="title">GitLeet Options</div>
+    <div class="muted">
+      Store a fine-grained PAT with <code>Contents: read/write</code> for your
+      repo. GitLeet stores the last submission only until it is pushed; it then
+      clears the local solution and keeps only last 2–3 sync metadata.
+    </div>
+
+    <div class="card">
+      <label for="repo">GitHub repo (owner/repo)</label>
+      <input id="repo" placeholder="username/my-leetcode-solutions" />
+
+      <label for="token">GitHub token (PAT)</label>
+      <input id="token" placeholder="ghp_…" type="password" />
+
+      <div class="checkboxRow">
+        <input id="autoPush" type="checkbox" />
+        <label for="autoPush" style="margin: 0; font-weight: 600"
+          >Auto-push on Accepted submission</label
+        >
+      </div>
+
+      <label for="mcpEndpoint">MCP schema endpoint (required)</label>
+      <input
+        id="mcpEndpoint"
+        placeholder="http://127.0.0.1:8787/schema/leetcode/submission (leave empty to use bundled)"
+      />
+      <div class="muted" style="margin-top: 6px">
+        GitLeet uses MCP schema mapping to normalize LeetCode responses. Leave
+        empty to use the bundled mapping; set an endpoint to use the MCP server
+        mapping.
+      </div>
+
+      <div class="row">
+        <button id="saveBtn">Save</button>
+        <button id="testBtn" class="secondary">Test connection</button>
+        <button id="clearBtn" class="secondary">Clear token</button>
+      </div>
+
+      <div id="msg" class="muted" style="margin-top: 10px"></div>
+      <div id="err" class="error" style="display: none; margin-top: 8px"></div>
+    </div>
+
+    <script type="module" src="./options.js"></script>
+  </body>
+</html>
+
