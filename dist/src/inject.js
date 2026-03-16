@@ -71,6 +71,67 @@
     };
   }
 
+  function wrapXhr() {
+    const OriginalXHR = window.XMLHttpRequest;
+    function XHR() {
+      const xhr = new OriginalXHR();
+      let url = "";
+      let method = "GET";
+      let bodyText = null;
+
+      const origOpen = xhr.open;
+      xhr.open = function (m, u) {
+        method = (m || "GET").toUpperCase();
+        url = String(u || "");
+        return origOpen.apply(xhr, arguments);
+      };
+
+      const origSend = xhr.send;
+      xhr.send = function (body) {
+        if (typeof body === "string") {
+          bodyText = body;
+        }
+
+        if (
+          method === "POST" &&
+          (url.includes("/submit") || url.includes("/interpret_solution") || url.includes("/graphql"))
+        ) {
+          xhr.addEventListener("load", function () {
+            try {
+              const ct = xhr.getResponseHeader("content-type") || "";
+              if (!ct.includes("application/json")) return;
+              const json = safeJsonParse(xhr.responseText);
+              if (!json) return;
+
+              let submit = null;
+              if (url.includes("/submit") || url.includes("/interpret_solution")) {
+                submit = captureFromSubmitPayload(url, bodyText || "");
+              }
+
+              post("SUBMISSION_CAPTURED", {
+                submit,
+                graphql: url.includes("/graphql")
+                  ? { url, requestBody: bodyText || "" }
+                  : null,
+                response: json
+              });
+            } catch {
+              // ignore
+            }
+          });
+        }
+
+        return origSend.apply(xhr, arguments);
+      };
+
+      return xhr;
+    }
+
+    window.XMLHttpRequest = XHR;
+  }
+
   wrapFetch();
+  wrapXhr();
+  post("HOOK_INSTALLED", { ts: Date.now() });
 })();
 

@@ -1,6 +1,7 @@
 import {
   addRecentSync,
   clearLastSubmission,
+  getCaptureStatus,
   getLastSubmission,
   getRecentSyncs,
   getSettings,
@@ -19,6 +20,8 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       const { action, payload } = msg || {};
       if (action === "GET_STATUS") {
         const settings = await getSettings();
+        const last = await getLastSubmission();
+        const captureStatus = await getCaptureStatus();
         const recent = await getRecentSyncs();
         sendResponse({
           ok: true,
@@ -28,6 +31,8 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
             autoPush: Boolean(settings.autoPush),
             tokenMasked: Boolean(settings.token),
             mcpEndpoint: settings.mcp?.endpoint || "",
+            hasLastSubmission: Boolean(last),
+            captureStatus,
             recentSyncs: recent
           }
         });
@@ -82,24 +87,41 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         const last = await getLastSubmission();
         if (!last) throw new Error("No captured submission to push yet. Submit on LeetCode first.");
 
-        const result = await githubUpsertFiles({
-          token: settings.token,
-          repo: settings.repo,
-          submission: last
-        });
+        try {
+          const result = await githubUpsertFiles({
+            token: settings.token,
+            repo: settings.repo,
+            submission: last
+          });
 
-        // Clear local solution after successful upload (keep only recent sync metadata)
-        await clearLastSubmission();
-        const recent = await addRecentSync({
-          slug: last.problem?.slug || "",
-          title: last.problem?.title || last.problem?.slug || "",
-          timestamp: Date.now(),
-          commitUrl: result.commitUrl || "",
-          folderUrl: result.folderUrl || ""
-        });
+          // Clear local solution after successful upload (keep only recent sync metadata)
+          await clearLastSubmission();
+          const recent = await addRecentSync({
+            slug: last.problem?.slug || "",
+            title: last.problem?.title || last.problem?.slug || "",
+            timestamp: Date.now(),
+            status: "synced",
+            error: "",
+            commitUrl: result.commitUrl || "",
+            folderUrl: result.folderUrl || ""
+          });
 
-        sendResponse({ ok: true, data: { recent } });
-        return;
+          sendResponse({ ok: true, data: { recent } });
+          return;
+        } catch (e) {
+          const msg = String(e?.message || e);
+          await addRecentSync({
+            slug: last.problem?.slug || "",
+            title: last.problem?.title || last.problem?.slug || "",
+            timestamp: Date.now(),
+            status: "failed",
+            error: msg,
+            commitUrl: "",
+            folderUrl: ""
+          });
+          sendResponse({ ok: false, error: msg });
+          return;
+        }
       }
 
       sendResponse({ ok: false, error: `Unknown action: ${action}` });

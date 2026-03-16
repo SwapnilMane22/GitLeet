@@ -1,11 +1,12 @@
 const statusEl = document.getElementById("status");
 const linkedPillEl = document.getElementById("linkedPill");
-const pushBtn = document.getElementById("pushBtn");
 const openOptionsBtn = document.getElementById("openOptionsBtn");
-const msgEl = document.getElementById("msg");
 const errEl = document.getElementById("err");
 const recentListEl = document.getElementById("recentList");
 const recentEmptyEl = document.getElementById("recentEmpty");
+const captureProblemEl = document.getElementById("captureProblem");
+const captureStatusTextEl = document.getElementById("captureStatusText");
+const captureMessageEl = document.getElementById("captureMessage");
 
 function setError(message) {
   if (!message) {
@@ -15,10 +16,6 @@ function setError(message) {
   }
   errEl.style.display = "block";
   errEl.textContent = message;
-}
-
-function setMsg(message) {
-  msgEl.textContent = message || "";
 }
 
 function fmtTs(ts) {
@@ -69,10 +66,45 @@ function renderRecent(recent) {
       right.textContent = item.slug ? item.slug : "";
     }
 
+    const status = document.createElement("span");
+    status.className =
+      "status-pill " +
+      (item.status === "failed"
+        ? "status-pill-failed"
+        : item.status === "synced"
+        ? "status-pill-synced"
+        : "status-pill-pending");
+    status.textContent =
+      item.status === "failed"
+        ? "Failed"
+        : item.status === "synced"
+        ? "Synced"
+        : "Pending";
+
     li.appendChild(left);
     li.appendChild(right);
+    li.appendChild(status);
     recentListEl.appendChild(li);
   }
+}
+
+function updateCaptureStatus(captureStatus) {
+  const problem = captureStatus?.problemTitle || captureStatus?.problemSlug || "(no problem yet)";
+  const message = captureStatus?.message || "";
+  captureProblemEl.textContent = problem;
+
+  captureStatusTextEl.className = "status-pill ";
+  if (captureStatus?.phase === "captured") {
+    captureStatusTextEl.classList.add("status-pill-synced");
+    captureStatusTextEl.textContent = "Captured";
+  } else if (captureStatus?.phase === "capture_failed") {
+    captureStatusTextEl.classList.add("status-pill-failed");
+    captureStatusTextEl.textContent = "Submission capturing failed";
+  } else {
+    captureStatusTextEl.classList.add("status-pill-pending");
+    captureStatusTextEl.textContent = "Waiting for capture…";
+  }
+  captureMessageEl.textContent = message;
 }
 
 async function send(action, payload = {}) {
@@ -86,17 +118,21 @@ async function refresh() {
     statusEl.textContent = "Error";
     setError(res?.error || "Failed to load status.");
     linkedPillEl.style.display = "none";
-    pushBtn.disabled = true;
+    updateCaptureStatus({ phase: "capture_failed", message: "Could not load status." });
     renderRecent([]);
     return;
   }
 
   const linked = Boolean(res.data?.linked);
   linkedPillEl.style.display = linked ? "inline-block" : "none";
-  statusEl.textContent = linked
-    ? `Linked to ${res.data.repo}`
-    : "Not linked. Open Options to configure.";
-  pushBtn.disabled = !linked;
+  if (!linked) {
+    statusEl.textContent = "Not linked. Open Options to configure.";
+  } else if (res.data?.hasLastSubmission) {
+    statusEl.textContent = `Linked to ${res.data.repo} • last submission captured`;
+  } else {
+    statusEl.textContent = `Linked to ${res.data.repo} • submit on LeetCode to capture`;
+  }
+  updateCaptureStatus(res.data?.captureStatus || null);
   renderRecent(res.data?.recentSyncs || []);
 }
 
@@ -104,25 +140,10 @@ openOptionsBtn.addEventListener("click", async () => {
   await chrome.runtime.openOptionsPage();
 });
 
-pushBtn.addEventListener("click", async () => {
-  setMsg("Pushing…");
-  setError("");
-  pushBtn.disabled = true;
-  try {
-    const res = await send("PUSH_LAST");
-    if (!res?.ok) {
-      setMsg("");
-      setError(res?.error || "Push failed.");
-    } else {
-      setMsg("Pushed successfully.");
-    }
-  } finally {
-    await refresh();
-  }
-});
-
 refresh().catch((e) => {
   statusEl.textContent = "Error";
   setError(String(e?.message || e));
 });
 
+// Refresh status every minute while popup is open
+setInterval(() => refresh().catch(() => {}), 60 * 1000);

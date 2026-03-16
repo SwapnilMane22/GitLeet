@@ -1,7 +1,8 @@
 const KEYS = {
   SETTINGS: "settings",
   LAST_SUBMISSION: "lastSubmission",
-  RECENT_SYNCS: "recentSyncs"
+  RECENT_SYNCS: "recentSyncs",
+  CAPTURE_STATUS: "captureStatus"
 };
 
 export async function getSettings() {
@@ -43,5 +44,10 @@ export async function addRecentSync(entry) {
   const next = [entry, ...recent].slice(0, 3);
   await chrome.storage.local.set({ [KEYS.RECENT_SYNCS]: next });
   return next;
+}
+
+export async function getCaptureStatus() {
+  const res = await chrome.storage.local.get([KEYS.CAPTURE_STATUS]);
+  return res[KEYS.CAPTURE_STATUS] || null;
 }
 
