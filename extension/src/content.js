@@ -57,137 +57,243 @@ async function shouldAutoPush() {
   return Boolean(settings.autoPush);
 }
 
-// ---- DOM-based capture (works when inject.js network hooks are blocked) ----
-function getText(el) {
-  if (!el) return "";
-  return (el.textContent || "").trim();
+// ---- JSON-based capture only ----
+let lastSubmitIntentAt = 0;
+const SUBMIT_INTENT_WINDOW_MS = 3 * 60 * 1000;
+
+function withinSubmitIntentWindow() {
+  return lastSubmitIntentAt && Date.now() - lastSubmitIntentAt < SUBMIT_INTENT_WINDOW_MS;
 }
 
-function findCodeFromDOM() {
-  // Monaco editor lines (submission detail view)
-  const viewLines = document.querySelectorAll('[class*="view-line"]');
-  if (viewLines.length > 5) {
-    const code = Array.from(viewLines)
-      .map((line) => getText(line))
-      .join("\n");
-    if (code.length > 20) return code;
+function setSubmitIntentNow() {
+  lastSubmitIntentAt = Date.now();
+}
+
+function getCookie(name) {
+  const m = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
+  return m ? decodeURIComponent(m[1]) : "";
+}
+
+function absolutizeUrl(url) {
+  try {
+    return new URL(url, location.origin).toString();
+  } catch {
+    return url || "";
   }
-  // Pre/code blocks
-  const pres = document.querySelectorAll("pre");
-  for (const pre of pres) {
-    const code = getText(pre);
-    if (code.length > 20 && (code.includes("def ") || code.includes("function ") || code.includes("class ") || code.includes("public "))) return code;
+}
+
+function slugifyAssetName(s) {
+  return String(s || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function getExtensionFromUrl(url) {
+  const u = String(url || "");
+  const m = u.match(/\.([a-zA-Z0-9]{2,5})(?:\?|#|$)/);
+  if (!m) return "png";
+  const ext = m[1].toLowerCase();
+  if (["png", "jpg", "jpeg", "gif", "webp", "svg"].includes(ext))
+    return ext === "jpeg" ? "jpg" : ext;
+  return "png";
+}
+
+function extractAssetsFromHtml({ slug, html }) {
+  const assets = [];
+  if (!html) return { html: "", assets };
+
+  let out = String(html);
+  const seen = new Set();
+  let idx = 1;
+  const imgRe = /<img\b([^>]*?)>/gi;
+  out = out.replace(imgRe, (full, attrs) => {
+    const srcMatch = attrs.match(/\bsrc\s*=\s*["']([^"']+)["']/i);
+    if (!srcMatch) return full;
+    const srcAbs = absolutizeUrl(srcMatch[1]);
+    if (!srcAbs) return full;
+
+    const altMatch = attrs.match(/\balt\s*=\s*["']([^"']+)["']/i);
+    const alt = altMatch ? altMatch[1] : `image-${idx}`;
+    const ext = getExtensionFromUrl(srcAbs);
+    let filename = `${slugifyAssetName(alt) || `image-${idx}`}.${ext}`;
+    while (seen.has(filename)) filename = `${slug}-image-${idx++}.${ext}`;
+    seen.add(filename);
+    assets.push({ url: srcAbs, filename });
+    idx += 1;
+
+    const nextAttrs = attrs.replace(srcMatch[0], `src="./assets/${filename}"`);
+    return `<img${nextAttrs}>`;
+  });
+
+  return { html: out, assets };
+}
+
+async function leetGraphQL({ query, variables, operationName }) {
+  const csrf = getCookie("csrftoken");
+  const res = await fetch("https://leetcode.com/graphql", {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "content-type": "application/json",
+      ...(csrf ? { "x-csrftoken": csrf } : {}),
+      // LeetCode sometimes checks these:
+      "x-requested-with": "XMLHttpRequest"
+    },
+    body: JSON.stringify({ query, variables, operationName })
+  });
+  const json = await res.json().catch(() => null);
+  if (!res.ok) {
+    throw new Error(`LeetCode GraphQL failed: ${res.status}`);
   }
-  const codeEls = document.querySelectorAll("code");
-  for (const codeEl of codeEls) {
-    const code = getText(codeEl);
-    if (code.length > 50) return code;
+  if (json?.errors?.length) {
+    throw new Error(`LeetCode GraphQL errors: ${json.errors[0]?.message || "unknown"}`);
   }
-  // Generic code container
-  const codeContainers = document.querySelectorAll('[class*="code"], [class*="Code"]');
-  for (const el of codeContainers) {
-    const code = getText(el);
-    if (code.length > 30) return code;
+  return json;
+}
+
+function getSubmissionIdFromUrl() {
+  const m = location.pathname.match(/\/submissions\/(\d+)/);
+  return m ? m[1] : "";
+}
+
+const SUBMISSION_DETAILS_QUERY = `query submissionDetails($submissionId: Int!) {
+  submissionDetails(submissionId: $submissionId) {
+    statusDisplay
+    runtime
+    runtimePercentile
+    memory
+    memoryPercentile
   }
-  return "";
+}`;
+
+/** Submit API often returns PENDING with no status_msg; poll until judged. */
+async function pollSubmissionDetailsGraphQL(submissionIdInt) {
+  const pendingRe =
+    /^(pending|judging|queued|started|waiting|processing|submitting)$/i;
+  let lastResp = null;
+  for (let i = 0; i < 70; i++) {
+    const resp = await leetGraphQL({
+      operationName: "submissionDetails",
+      query: SUBMISSION_DETAILS_QUERY,
+      variables: { submissionId: submissionIdInt }
+    });
+    lastResp = resp;
+    const st = String(resp?.data?.submissionDetails?.statusDisplay || "").trim();
+    if (st && !pendingRe.test(st)) return resp;
+    await new Promise((r) => setTimeout(r, 450));
+  }
+  return lastResp;
 }
 
-function findStatusAndStats() {
-  const body = getText(document.body);
-  const accepted = /Accepted/i.test(body);
-  let runtimeMs = null;
-  let memoryMb = null;
-  const runtimeMatch = body.match(/Runtime[:\s]*(\d+)\s*ms/i) || body.match(/(\d+)\s*ms/i);
-  if (runtimeMatch) runtimeMs = parseInt(runtimeMatch[1], 10);
-  const memoryMatch = body.match(/Memory[:\s]*([\d.]+)\s*MB/i) || body.match(/([\d.]+)\s*MB/i);
-  if (memoryMatch) memoryMb = parseFloat(memoryMatch[1]);
-  return { accepted, runtimeMs, memoryMb };
+function isLeetCodeAccepted(normalized) {
+  const s = String(
+    normalized?.status || normalized?.performance?.status || ""
+  ).toLowerCase();
+  if (s.includes("accepted")) return true;
+  if (s === "ac" || s === "success") return true;
+  const raw = normalized?.raw?.captured?.response;
+  if (!raw || typeof raw !== "object") return false;
+  const state = String(raw.state || raw.data?.state || "").toUpperCase();
+  if (state === "ACCEPTED" || state === "SUCCESS") return true;
+  const msg = String(raw.status_msg || raw.statusMsg || "").toLowerCase();
+  if (msg.includes("accepted")) return true;
+  return false;
 }
 
-function findLanguageFromDOM() {
-  const body = getText(document.body);
-  if (/Python\s*3?/i.test(body)) return "python3";
-  if (/JavaScript|Node\.js/i.test(body)) return "javascript";
-  if (/TypeScript/i.test(body)) return "typescript";
-  if (/Java\s*\d*/i.test(body)) return "java";
-  if (/C\+\+/i.test(body)) return "cpp";
-  if (/C\s*#/i.test(body)) return "csharp";
-  if (/Go\s*lang/i.test(body)) return "go";
-  if (/Rust/i.test(body)) return "rust";
-  return "unknown";
+async function enrichSubmissionViaGraphQL({ slug, submissionId }) {
+  // 1) Question content (statement HTML)
+  const questionResp = await leetGraphQL({
+    operationName: "questionData",
+    query: `query questionData($titleSlug: String!) {
+      question(titleSlug: $titleSlug) {
+        title
+        content
+        difficulty
+        titleSlug
+      }
+    }`,
+    variables: { titleSlug: slug }
+  });
+
+  // 2) Submission details — poll until LeetCode finishes judging (~30s max)
+  let submissionDetailsResp = null;
+  const sid = submissionId ? Number(submissionId) : NaN;
+  if (Number.isFinite(sid)) {
+    submissionDetailsResp = await pollSubmissionDetailsGraphQL(sid);
+  }
+
+  const { normalizeGraphQlEnrichment } = await import(
+    chrome.runtime.getURL("src/schemaAdapter.js")
+  );
+  return await normalizeGraphQlEnrichment({
+    questionResp,
+    submissionDetailsResp
+  });
 }
 
-function findProblemTitle() {
-  const sel = document.querySelector('[data-cy="question-title"]') ||
-    document.querySelector("h4.text-title-large") ||
-    document.querySelector(".question-title");
-  return sel ? getText(sel) : "";
+function installSubmitIntentListener() {
+  window.addEventListener(
+    "click",
+    (e) => {
+      const t = e.target;
+      if (!(t instanceof Element)) return;
+      const btn = t.closest('button,[role="button"]');
+      if (!btn) return;
+      const label = (btn.textContent || "").trim().toLowerCase();
+      if (!label) return;
+      // Only treat explicit Submit as intent (avoid Run).
+      if (label === "submit" || label.includes("submit")) {
+        setSubmitIntentNow();
+        const slug = getProblemSlugFromUrl();
+        setCaptureStatus({
+          phase: "waiting_submission",
+          problemSlug: slug,
+          problemTitle: slug,
+          message: "Waiting for Accepted result to appear…"
+        });
+      }
+    },
+    true
+  );
 }
 
-let lastDomCaptureHash = "";
-
-function tryDomCapture() {
-  if (!isLeetCodeProblemPage()) return;
+function updateIdleStatusIfNeeded() {
+  if (!isLeetCodeProblemPage()) {
+    setCaptureStatus({
+      phase: "idle",
+      message: "Open a LeetCode problem page to start capture."
+    });
+    return;
+  }
   const slug = getProblemSlugFromUrl();
   if (!slug) return;
-
-  const code = findCodeFromDOM();
-  const { accepted, runtimeMs, memoryMb } = findStatusAndStats();
-  if (!accepted || !code || code.length < 10) return;
-
-  const hash = slug + "|" + code.slice(0, 200);
-  if (hash === lastDomCaptureHash) return;
-  lastDomCaptureHash = hash;
-
-  const title = findProblemTitle() || slug;
-  const language = findLanguageFromDOM();
-
-  const normalized = {
-    problem: {
-      slug,
-      title,
-      url: getProblemUrl()
-    },
-    code,
-    language,
-    status: "Accepted",
-    performance: {
-      status: "Accepted",
-      runtimeMs: runtimeMs ?? undefined,
-      memoryMb: memoryMb ?? undefined
-    },
-    capturedAt: Date.now()
-  };
-
-  setLastSubmissionLocal(normalized);
   setCaptureStatus({
-    phase: "captured",
+    phase: "ready",
     problemSlug: slug,
-    problemTitle: title,
-    message: "Submission captured from page."
-  });
-
-  shouldAutoPush().then((auto) => {
-    if (auto) chrome.runtime.sendMessage({ action: "PUSH_LAST", payload: {} });
+    problemTitle: slug,
+    message: "Ready. Click Submit to capture the submission JSON."
   });
 }
 
-function startDomObserver() {
-  if (!isLeetCodeProblemPage()) return;
-  const run = () => {
-    try {
-      tryDomCapture();
-    } catch (e) {
-      // ignore
-    }
+function installSpaNavigationListener() {
+  const notify = () => updateIdleStatusIfNeeded();
+
+  window.addEventListener("popstate", notify);
+
+  const origPush = history.pushState;
+  history.pushState = function () {
+    const r = origPush.apply(this, arguments);
+    notify();
+    return r;
   };
-  run();
-  setInterval(run, 2000);
-  const observer = new MutationObserver(() => run());
-  observer.observe(document.body || document.documentElement, {
-    childList: true,
-    subtree: true
-  });
+  const origReplace = history.replaceState;
+  history.replaceState = function () {
+    const r = origReplace.apply(this, arguments);
+    notify();
+    return r;
+  };
 }
 
 // ---- Message handling (network capture from inject.js) ----
@@ -196,10 +302,26 @@ window.addEventListener("message", async (event) => {
   const data = event.data;
   if (!data || data.__gitleet__ !== true) return;
 
+  if (data.type === "SUBMIT_INTENT") {
+    setSubmitIntentNow();
+    const slug = getProblemSlugFromUrl();
+    await setCaptureStatus({
+      phase: "waiting_submission",
+      problemSlug: slug,
+      problemTitle: slug,
+      message: "Submitting… waiting for results."
+    });
+    return;
+  }
+
   if (data.type === "HOOK_INSTALLED") {
     await setCaptureStatus({
       phase: "hook_installed",
-      message: "GitLeet capture hooks installed."
+      problemSlug: isLeetCodeProblemPage() ? getProblemSlugFromUrl() : "",
+      problemTitle: isLeetCodeProblemPage() ? getProblemSlugFromUrl() : "",
+      message: isLeetCodeProblemPage()
+        ? "GitLeet capture hooks installed."
+        : "Open a LeetCode problem to start capture."
     });
     return;
   }
@@ -219,23 +341,88 @@ window.addEventListener("message", async (event) => {
       }
 
       if (normalized?.code && normalized?.problem?.slug) {
+        // Avoid background/old payloads causing commits without explicit submission intent.
+        // Intent is set by either:
+        // - clicking the Submit button (UI listener), or
+        // - observing a /submit request in the injected network hook (SUBMIT_INTENT)
+        if (!withinSubmitIntentWindow()) return;
         normalized.capturedAt = Date.now();
+        if (!normalized.submissionId) {
+          const fromUrl = getSubmissionIdFromUrl();
+          if (fromUrl) normalized.submissionId = fromUrl;
+        }
+        // Enrich via official LeetCode GraphQL (JSON-based, no DOM scraping)
+        try {
+          await setCaptureStatus({
+            phase: "enriching",
+            problemSlug: normalized.problem.slug,
+            problemTitle: normalized.problem.title || normalized.problem.slug,
+            message: "Fetching full problem + submission details…"
+          });
+
+          const enrichment = await enrichSubmissionViaGraphQL({
+            slug: normalized.problem.slug,
+            submissionId: normalized.submissionId
+          });
+
+          const descriptionRaw = enrichment?.problem?.descriptionHtml || "";
+          const extracted = extractAssetsFromHtml({
+            slug: normalized.problem.slug,
+            html: descriptionRaw
+          });
+
+          normalized.problem.title =
+            enrichment?.problem?.title || normalized.problem.title || normalized.problem.slug;
+          normalized.problem.difficulty =
+            enrichment?.problem?.difficulty || normalized.problem.difficulty || "";
+          normalized.problem.descriptionHtml = extracted.html || "";
+          normalized.problem.assets = extracted.assets || [];
+
+          normalized.performance = {
+            ...(normalized.performance || {}),
+            ...(enrichment?.performance || {})
+          };
+          if (!normalized.status && enrichment?.performance?.status) {
+            normalized.status = enrichment.performance.status;
+          }
+        } catch (e) {
+          // Enrichment failure shouldn't block a successful JSON capture.
+          await setCaptureStatus({
+            phase: "enrich_failed",
+            problemSlug: normalized.problem.slug,
+            problemTitle: normalized.problem.title || normalized.problem.slug,
+            message: `Enrichment failed: ${String(e?.message || e)}`
+          });
+        }
+
+        const auto = await shouldAutoPush();
+        const accepted = isLeetCodeAccepted(normalized);
+        if (!accepted) {
+          const reason =
+            normalized?.performance?.status ||
+            normalized?.status ||
+            (normalized?.raw?.captured?.response?.state
+              ? String(normalized.raw.captured.response.state)
+              : "") ||
+            "Still judging or status unavailable — try Sync now from submission page.";
+          await setCaptureStatus({
+            phase: "not_accepted",
+            problemSlug: normalized.problem.slug,
+            problemTitle: normalized.problem.title || normalized.problem.slug,
+            message: `Not accepted: ${reason}`
+          });
+          return;
+        }
+
+        // Only persist & push for Accepted submissions.
         await setLastSubmissionLocal(normalized);
         await setCaptureStatus({
           phase: "captured",
           problemSlug: normalized.problem.slug,
           problemTitle: normalized.problem.title || normalized.problem.slug,
-          message: "Submission captured successfully."
+          message: "Accepted. Ready to push."
         });
-
-        const auto = await shouldAutoPush();
-        const accepted =
-          String(normalized?.status || normalized?.performance?.status || "")
-            .toLowerCase()
-            .includes("accepted");
-        if (auto && accepted) {
-          chrome.runtime.sendMessage({ action: "PUSH_LAST", payload: {} });
-        }
+        if (auto) chrome.runtime.sendMessage({ action: "PUSH_LAST", payload: {} });
       } else {
         await setCaptureStatus({
           phase: "capture_failed",
@@ -253,9 +440,7 @@ window.addEventListener("message", async (event) => {
   }
 });
 
+installSubmitIntentListener();
+installSpaNavigationListener();
+updateIdleStatusIfNeeded();
 inject();
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", startDomObserver);
-} else {
-  startDomObserver();
-}

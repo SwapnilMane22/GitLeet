@@ -7,6 +7,9 @@ const recentEmptyEl = document.getElementById("recentEmpty");
 const captureProblemEl = document.getElementById("captureProblem");
 const captureStatusTextEl = document.getElementById("captureStatusText");
 const captureMessageEl = document.getElementById("captureMessage");
+const syncNowBtn = document.getElementById("syncNowBtn");
+const autoPushToggle = document.getElementById("autoPushToggle");
+const syncHintEl = document.getElementById("syncHint");
 
 function setError(message) {
   if (!message) {
@@ -89,7 +92,10 @@ function renderRecent(recent) {
 }
 
 function updateCaptureStatus(captureStatus) {
-  const problem = captureStatus?.problemTitle || captureStatus?.problemSlug || "(no problem yet)";
+  const problem =
+    captureStatus?.problemTitle ||
+    captureStatus?.problemSlug ||
+    (captureStatus?.phase === "idle" ? "Not on a problem page" : "(no problem yet)");
   const message = captureStatus?.message || "";
   captureProblemEl.textContent = problem;
 
@@ -97,9 +103,24 @@ function updateCaptureStatus(captureStatus) {
   if (captureStatus?.phase === "captured") {
     captureStatusTextEl.classList.add("status-pill-synced");
     captureStatusTextEl.textContent = "Captured";
+  } else if (captureStatus?.phase === "ready") {
+    captureStatusTextEl.classList.add("status-pill-pending");
+    captureStatusTextEl.textContent = "Ready";
+  } else if (captureStatus?.phase === "enriching") {
+    captureStatusTextEl.classList.add("status-pill-pending");
+    captureStatusTextEl.textContent = "Fetching details…";
+  } else if (captureStatus?.phase === "enrich_failed") {
+    captureStatusTextEl.classList.add("status-pill-failed");
+    captureStatusTextEl.textContent = "Details fetch failed";
+  } else if (captureStatus?.phase === "not_accepted") {
+    captureStatusTextEl.classList.add("status-pill-failed");
+    captureStatusTextEl.textContent = "Not accepted";
   } else if (captureStatus?.phase === "capture_failed") {
     captureStatusTextEl.classList.add("status-pill-failed");
     captureStatusTextEl.textContent = "Submission capturing failed";
+  } else if (captureStatus?.phase === "waiting_submission") {
+    captureStatusTextEl.classList.add("status-pill-pending");
+    captureStatusTextEl.textContent = "Waiting for result…";
   } else {
     captureStatusTextEl.classList.add("status-pill-pending");
     captureStatusTextEl.textContent = "Waiting for capture…";
@@ -133,12 +154,61 @@ async function refresh() {
     statusEl.textContent = `Linked to ${res.data.repo} • submit on LeetCode to capture`;
   }
   updateCaptureStatus(res.data?.captureStatus || null);
+  const autoPush = Boolean(res.data?.autoPush);
+  if (autoPushToggle) autoPushToggle.checked = autoPush;
+  const canManualSync =
+    linked && Boolean(res.data?.hasLastSubmission) && !autoPush;
+  if (syncNowBtn) {
+    syncNowBtn.disabled = !canManualSync;
+    syncNowBtn.title = autoPush
+      ? "Auto-push is on — submissions sync after Accepted capture."
+      : !linked
+      ? "Configure repo and token in Options."
+      : !res.data?.hasLastSubmission
+      ? "Submit an Accepted solution on LeetCode first."
+      : "";
+  }
+  if (syncHintEl) {
+    if (linked && autoPush) {
+      syncHintEl.style.display = "block";
+      syncHintEl.textContent =
+        "Auto-push is on: Accepted submissions sync to GitHub automatically. Turn it off to use Sync now.";
+    } else if (linked && !autoPush && res.data?.hasLastSubmission) {
+      syncHintEl.style.display = "block";
+      syncHintEl.textContent =
+        "Sync now pushes the last captured Accepted submission.";
+    } else {
+      syncHintEl.style.display = "none";
+      syncHintEl.textContent = "";
+    }
+  }
   renderRecent(res.data?.recentSyncs || []);
 }
 
 openOptionsBtn.addEventListener("click", async () => {
   await chrome.runtime.openOptionsPage();
 });
+
+if (autoPushToggle) {
+  autoPushToggle.addEventListener("change", async () => {
+    const on = Boolean(autoPushToggle.checked);
+    await send("SET_AUTO_PUSH", { autoPush: on });
+    await refresh();
+  });
+}
+
+if (syncNowBtn) {
+  syncNowBtn.addEventListener("click", async () => {
+    setError("");
+    syncNowBtn.disabled = true;
+    try {
+      const res = await send("PUSH_LAST");
+      if (!res?.ok) setError(res?.error || "Sync failed.");
+    } finally {
+      await refresh();
+    }
+  });
+}
 
 refresh().catch((e) => {
   statusEl.textContent = "Error";

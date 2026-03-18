@@ -50,6 +50,7 @@ export async function normalizeCaptured(payload) {
   const memoryMb = toNumberMaybe(firstMatch(response, paths.memoryMb));
   const runtimeBeats = toNumberMaybe(firstMatch(response, paths.runtimeBeats));
   const memoryBeats = toNumberMaybe(firstMatch(response, paths.memoryBeats));
+  const submissionId = firstMatch(response, paths.submissionId);
 
   const language =
     firstMatch(payload, paths.language) ||
@@ -61,6 +62,7 @@ export async function normalizeCaptured(payload) {
     problem: { title, slug, difficulty, url: "" },
     language: language || "",
     code: code || "",
+    submissionId: submissionId ? String(submissionId) : "",
     status: status || "",
     performance: {
       status: status || "",
@@ -72,6 +74,36 @@ export async function normalizeCaptured(payload) {
     raw: {
       // keep raw in-memory only; background clears this storage after upload
       captured: combined
+    }
+  };
+}
+
+export async function normalizeGraphQlEnrichment({ questionResp, submissionDetailsResp } = {}) {
+  const mapping = await fetchSchemaMapping();
+  const paths = mapping?.paths || {};
+
+  const questionContentHtml = firstMatch(questionResp, paths.questionContentHtml);
+  const questionTitle = firstMatch(questionResp, paths.questionTitle);
+  const questionDifficulty = firstMatch(questionResp, paths.questionDifficulty);
+
+  const status = firstMatch(submissionDetailsResp, paths.status);
+  const runtimeMs = toNumberMaybe(firstMatch(submissionDetailsResp, paths.runtimeMs));
+  const memoryMb = toNumberMaybe(firstMatch(submissionDetailsResp, paths.memoryMb));
+  const runtimeBeats = toNumberMaybe(firstMatch(submissionDetailsResp, paths.runtimeBeats));
+  const memoryBeats = toNumberMaybe(firstMatch(submissionDetailsResp, paths.memoryBeats));
+
+  return {
+    problem: {
+      title: questionTitle,
+      difficulty: questionDifficulty,
+      descriptionHtml: questionContentHtml
+    },
+    performance: {
+      status,
+      runtimeMs,
+      runtimeBeats,
+      memoryMb,
+      memoryBeats
     }
   };
 }

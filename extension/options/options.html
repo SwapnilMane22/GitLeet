@@ -1,41 +1,111 @@
 <!doctype html>
-<html>
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>GitLeet Options</title>
     <style>
-      :root {
-        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto,
-          Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      :root,
+      [data-theme="light"] {
+        --bg: #f3f4f6;
+        --card: #ffffff;
+        --text: #111827;
+        --muted: #6b7280;
+        --border: #e5e7eb;
+        --input-bg: #ffffff;
+        --btn: #111827;
+        --btn-text: #ffffff;
+        --btn-sec-bg: #ffffff;
+        --btn-sec-text: #111827;
+        --code-bg: #f3f4f6;
+        --ok: #047857;
+        --err: #b91c1c;
+        --link: #2563eb;
+      }
+      [data-theme="dark"] {
+        --bg: #0f172a;
+        --card: #1e293b;
+        --text: #f1f5f9;
+        --muted: #94a3b8;
+        --border: #334155;
+        --input-bg: #0f172a;
+        --btn: #22c55e;
+        --btn-text: #052e16;
+        --btn-sec-bg: #334155;
+        --btn-sec-text: #f1f5f9;
+        --code-bg: #334155;
+        --ok: #4ade80;
+        --err: #f87171;
+        --link: #38bdf8;
+      }
+      * {
+        box-sizing: border-box;
       }
       body {
         margin: 0;
         padding: 16px;
-        color: #111827;
+        color: var(--text);
+        background: var(--bg);
         max-width: 780px;
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto,
+          Helvetica, Arial, sans-serif;
+        transition: background 0.15s, color 0.15s;
+      }
+      .topbar {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-bottom: 8px;
       }
       .title {
         font-weight: 800;
         font-size: 18px;
       }
-      .muted {
-        color: #6b7280;
+      .theme-toggle {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--muted);
+      }
+      .theme-toggle button {
+        padding: 6px 12px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: var(--btn-sec-bg);
+        color: var(--btn-sec-text);
+        cursor: pointer;
         font-size: 12px;
+      }
+      .theme-toggle button.active {
+        background: var(--btn);
+        color: var(--btn-text);
+        border-color: transparent;
+      }
+      .muted {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.5;
       }
       label {
         display: block;
         font-size: 12px;
         font-weight: 700;
         margin: 14px 0 6px;
+        color: var(--text);
       }
-      input {
+      input[type="text"],
+      input[type="password"] {
         width: 100%;
-        box-sizing: border-box;
         padding: 10px 10px;
-        border: 1px solid #e5e7eb;
+        border: 1px solid var(--border);
         border-radius: 10px;
         font-size: 14px;
+        background: var(--input-bg);
+        color: var(--text);
       }
       .row {
         display: flex;
@@ -44,31 +114,38 @@
         align-items: center;
         margin-top: 14px;
       }
-      button {
+      button.primary {
         cursor: pointer;
-        border: 1px solid #e5e7eb;
-        background: #111827;
-        color: white;
+        border: none;
+        background: var(--btn);
+        color: var(--btn-text);
+        padding: 10px 12px;
+        border-radius: 10px;
+        font-size: 13px;
+        font-weight: 600;
+      }
+      button.secondary {
+        cursor: pointer;
+        border: 1px solid var(--border);
+        background: var(--btn-sec-bg);
+        color: var(--btn-sec-text);
         padding: 10px 12px;
         border-radius: 10px;
         font-size: 13px;
       }
-      button.secondary {
-        background: white;
-        color: #111827;
-      }
       .card {
         margin-top: 16px;
-        border: 1px solid #e5e7eb;
+        border: 1px solid var(--border);
         border-radius: 12px;
-        padding: 12px;
+        padding: 16px;
+        background: var(--card);
       }
       .ok {
-        color: #047857;
+        color: var(--ok);
         font-size: 13px;
       }
       .error {
-        color: #b91c1c;
+        color: var(--err);
         font-size: 13px;
       }
       .checkboxRow {
@@ -77,18 +154,49 @@
         align-items: center;
         margin-top: 12px;
       }
+      .checkboxRow label {
+        margin: 0;
+        font-weight: 600;
+      }
       input[type="checkbox"] {
         width: auto;
+        accent-color: #22c55e;
       }
       code {
-        background: #f3f4f6;
-        padding: 1px 6px;
+        background: var(--code-bg);
+        padding: 2px 6px;
         border-radius: 6px;
+        font-size: 11px;
+      }
+      details.advanced {
+        margin-top: 18px;
+        border-top: 1px solid var(--border);
+        padding-top: 14px;
+      }
+      details.advanced summary {
+        cursor: pointer;
+        font-weight: 700;
+        font-size: 13px;
+        color: var(--muted);
+        list-style: none;
+      }
+      details.advanced summary::-webkit-details-marker {
+        display: none;
+      }
+      details.advanced[open] summary {
+        margin-bottom: 10px;
       }
     </style>
   </head>
   <body>
-    <div class="title">GitLeet Options</div>
+    <div class="topbar">
+      <div class="title">GitLeet Options</div>
+      <div class="theme-toggle">
+        <span>Theme</span>
+        <button type="button" id="themeLight" class="active">Light</button>
+        <button type="button" id="themeDark">Dark</button>
+      </div>
+    </div>
     <div class="muted">
       Store a fine-grained PAT with <code>Contents: read/write</code> for your
       repo. GitLeet stores the last submission only until it is pushed; it then
@@ -97,40 +205,41 @@
 
     <div class="card">
       <label for="repo">GitHub repo (owner/repo)</label>
-      <input id="repo" placeholder="username/my-leetcode-solutions" />
+      <input id="repo" type="text" placeholder="username/my-leetcode-solutions" />
 
       <label for="token">GitHub token (PAT)</label>
-      <input id="token" placeholder="ghp_…" type="password" />
+      <input id="token" type="password" placeholder="ghp_…" />
 
       <div class="checkboxRow">
         <input id="autoPush" type="checkbox" />
-        <label for="autoPush" style="margin: 0; font-weight: 600"
-          >Auto-push on Accepted submission</label
-        >
-      </div>
-
-      <label for="mcpEndpoint">MCP schema endpoint (required)</label>
-      <input
-        id="mcpEndpoint"
-        placeholder="http://127.0.0.1:8787/schema/leetcode/submission (leave empty to use bundled)"
-      />
-      <div class="muted" style="margin-top: 6px">
-        GitLeet uses MCP schema mapping to normalize LeetCode responses. Leave
-        empty to use the bundled mapping; set an endpoint to use the MCP server
-        mapping.
+        <label for="autoPush">Auto-push on Accepted submission</label>
       </div>
 
       <div class="row">
-        <button id="saveBtn">Save</button>
+        <button id="saveBtn" class="primary">Save</button>
         <button id="testBtn" class="secondary">Test connection</button>
         <button id="clearBtn" class="secondary">Clear token</button>
       </div>
 
       <div id="msg" class="muted" style="margin-top: 10px"></div>
       <div id="err" class="error" style="display: none; margin-top: 8px"></div>
+
+      <details class="advanced">
+        <summary>Advanced (developers)</summary>
+        <div class="muted" style="margin-bottom: 10px">
+          <strong>Schema mapping is bundled</strong> with the extension — no
+          server needed. Use a custom URL only if you maintain your own mapping
+          JSON (same shape as <code>schemaMapping.json</code>).
+        </div>
+        <label for="mcpEndpoint">Optional custom schema URL</label>
+        <input
+          id="mcpEndpoint"
+          type="text"
+          placeholder="Leave empty — bundled mapping (recommended)"
+        />
+      </details>
     </div>
 
     <script type="module" src="./options.js"></script>
   </body>
 </html>
-

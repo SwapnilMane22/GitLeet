@@ -18,6 +18,31 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   (async () => {
     try {
       const { action, payload } = msg || {};
+      if (action === "FETCH_SCHEMA_MAPPING") {
+        const settings = await getSettings();
+        const mcp = settings.mcp || {};
+        if (mcp.mode === "remote" && mcp.endpoint) {
+          const r = await fetch(String(mcp.endpoint).trim(), { cache: "no-store" });
+          if (!r.ok) {
+            sendResponse({
+              ok: false,
+              error: `MCP schema fetch failed: ${r.status}. For http://127.0.0.1 enable site access for the extension or use bundled mapping.`
+            });
+            return;
+          }
+          sendResponse({ ok: true, data: await r.json() });
+          return;
+        }
+        const url = chrome.runtime.getURL("src/schemaMapping.json");
+        const r = await fetch(url, { cache: "no-store" });
+        if (!r.ok) {
+          sendResponse({ ok: false, error: "Bundled schema mapping missing" });
+          return;
+        }
+        sendResponse({ ok: true, data: await r.json() });
+        return;
+      }
+
       if (action === "GET_STATUS") {
         const settings = await getSettings();
         const last = await getLastSubmission();
@@ -29,6 +54,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
             linked: Boolean(settings.repo && settings.token),
             repo: settings.repo || "",
             autoPush: Boolean(settings.autoPush),
+            uiTheme: settings.uiTheme === "dark" ? "dark" : "light",
             tokenMasked: Boolean(settings.token),
             mcpEndpoint: settings.mcp?.endpoint || "",
             hasLastSubmission: Boolean(last),
@@ -45,10 +71,12 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         const token = String(payload?.token || "").trim();
         const autoPush = Boolean(payload?.autoPush);
         const mcpEndpoint = String(payload?.mcpEndpoint || "").trim();
+        const uiTheme = payload?.uiTheme === "dark" ? "dark" : "light";
         const next = {
           ...settings,
           repo,
           autoPush,
+          uiTheme: payload?.uiTheme !== undefined ? uiTheme : settings.uiTheme || "light",
           token: token || settings.token, // allow save without retyping
           mcp: {
             ...(settings.mcp || {}),
@@ -58,6 +86,24 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         };
         await setSettings(next);
         sendResponse({ ok: true, data: { repo, autoPush, tokenMasked: maskToken(next.token) } });
+        return;
+      }
+
+      if (action === "SET_AUTO_PUSH") {
+        const settings = await getSettings();
+        await setSettings({
+          ...settings,
+          autoPush: Boolean(payload?.autoPush)
+        });
+        sendResponse({ ok: true });
+        return;
+      }
+
+      if (action === "SET_UI_THEME") {
+        const settings = await getSettings();
+        const uiTheme = payload?.theme === "dark" ? "dark" : "light";
+        await setSettings({ ...settings, uiTheme });
+        sendResponse({ ok: true });
         return;
       }
 

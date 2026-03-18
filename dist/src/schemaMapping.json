@@ -3,7 +3,17 @@
   "notes": "GitLeet MCP schema mapping for normalizing captured LeetCode submissions.",
   "paths": {
     "graphqlOperationName": ["graphqlOperationName", "operationName"],
-    "status": ["data.submissionDetails.statusDisplay", "data.submissionDetails.status_display", "data.runCode.status_msg", "data.submitCode.status_msg", "status_msg"],
+    "status": [
+      "data.submissionDetails.statusDisplay",
+      "data.submissionDetails.status_display",
+      "data.runCode.status_msg",
+      "data.submitCode.status_msg",
+      "status_msg",
+      "state",
+      "data.state",
+      "status",
+      "data.status"
+    ],
     "runtimeMs": ["data.submissionDetails.runtime", "data.submissionDetails.runtime_ms", "data.runCode.runtime", "runtime"],
     "memoryMb": ["data.submissionDetails.memory", "data.submissionDetails.memory_mb", "data.runCode.memory", "memory"],
     "runtimeBeats": ["data.submissionDetails.runtimePercentile", "data.submissionDetails.runtime_percentile", "runtime_percentile", "data.submissionDetails.runtimeBeats"],
@@ -12,7 +22,28 @@
     "slug": ["data.question.titleSlug", "data.questionTitleSlug", "titleSlug", "slug"],
     "difficulty": ["data.question.difficulty", "difficulty"],
     "language": ["submit.language", "submit.request.lang", "lang", "language"],
-    "code": ["submit.code", "submit.request.typed_code", "typed_code", "code"]
+    "code": ["submit.code", "submit.request.typed_code", "typed_code", "code"],
+    "submissionId": [
+      "data.submissionCreate.submission.id",
+      "data.submissionCreate.submissionId",
+      "data.submissionCreate.id",
+      "data.submitCode.submissionId",
+      "data.submitCode.submission_id",
+      "data.runCode.submissionId",
+      "data.runCode.submission_id",
+      "data.submissionId",
+      "data.submission_id",
+      "submission_id",
+      "submissionId",
+      "id"
+    ],
+    "questionContentHtml": [
+      "data.question.content",
+      "data.questionContent",
+      "data.question.contentHtml"
+    ],
+    "questionTitle": ["data.question.title", "data.questionTitle", "title"],
+    "questionDifficulty": ["data.question.difficulty", "difficulty"]
   }
 }
 

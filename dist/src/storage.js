@@ -12,6 +12,7 @@ export async function getSettings() {
       repo: "",
       token: "",
       autoPush: false,
+      uiTheme: "light",
       mcp: { mode: "bundled" }
     }
   );

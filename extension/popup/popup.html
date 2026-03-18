@@ -112,6 +112,31 @@
         color: #e5e7eb;
         border-color: #4b5563;
       }
+      .sync-row {
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+      .toggle-wrap {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+        color: #e5e7eb;
+        cursor: pointer;
+        user-select: none;
+      }
+      .toggle-wrap input {
+        width: 16px;
+        height: 16px;
+        accent-color: #22c55e;
+        cursor: pointer;
+      }
+      .sync-hint {
+        margin-top: 6px;
+        font-size: 11px;
+        line-height: 1.35;
+      }
     </style>
   </head>
   <body>
@@ -128,10 +153,6 @@
         <div class="title">Current problem</div>
         <button id="openOptionsBtn" class="secondary">Options</button>
       </div>
-      <div class="muted" style="margin-top: 8px">
-        GitLeet auto-pushes on Accepted submissions when capture works. Status
-        below updates every minute while this popup is open.
-      </div>
       <div id="captureRow" style="margin-top: 10px; font-size: 12px">
         <div class="row">
           <span id="captureProblem">(no problem yet)</span>
@@ -140,6 +161,16 @@
           >
         </div>
         <div id="captureMessage" class="muted" style="margin-top: 6px"></div>
+        <div class="row sync-row" style="margin-top: 10px">
+          <label class="toggle-wrap">
+            <input type="checkbox" id="autoPushToggle" />
+            <span>Auto-push on Accepted</span>
+          </label>
+          <button id="syncNowBtn" class="secondary" style="padding: 6px 10px">
+            Sync now
+          </button>
+        </div>
+        <div id="syncHint" class="muted sync-hint" style="display: none"></div>
       </div>
       <div id="err" class="error" style="display: none"></div>
     </div>

@@ -16,15 +16,12 @@ export async function getMcpConfig() {
 }
 
 export async function fetchSchemaMapping() {
-  const cfg = await getMcpConfig();
-  if (cfg.mode === "remote" && cfg.endpoint) {
-    const r = await fetch(cfg.endpoint, { cache: "no-store" });
-    if (!r.ok) throw new Error(`MCP schema fetch failed: ${r.status}`);
-    return await r.json();
+  // Content scripts cannot fetch extension-packaged JSON (CORS / web-accessible rules).
+  // Always load schema via the service worker.
+  const res = await chrome.runtime.sendMessage({ action: "FETCH_SCHEMA_MAPPING" });
+  if (!res?.ok) {
+    throw new Error(res?.error || "Schema fetch failed");
   }
-  const url = chrome.runtime.getURL("src/schemaMapping.json");
-  const r = await fetch(url, { cache: "no-store" });
-  if (!r.ok) throw new Error("Bundled schema mapping missing");
-  return await r.json();
+  return res.data;
 }
 
