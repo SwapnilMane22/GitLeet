@@ -1,6 +1,9 @@
-name: Release (build + zip dist)
+name: Release
 
 on:
+  pull_request:
+  push:
+    branches: ["main"]
   workflow_dispatch:
     inputs:
       version:
@@ -20,7 +23,35 @@ permissions:
   contents: write
 
 jobs:
-  build_release:
+  build:
+    name: Build (npm run build)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies (if package-lock exists)
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -f package-lock.json ]]; then
+            npm ci
+          else
+            npm install
+          fi
+
+      - name: Build extension (dist/)
+        run: npm run build
+
+  release:
+    name: Release (manual)
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    needs: [build]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
