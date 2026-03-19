@@ -15,7 +15,7 @@ const OUT = path.resolve(ROOT, "releases");
 
 await fs.mkdir(OUT, { recursive: true });
 
-const zipName = `gitleet-chrome-v0.1.0.zip`;
+const zipName = `gitleet-v0.0.1.zip`;
 const zipPath = path.join(OUT, zipName);
 
 // macOS has /usr/bin/zip; use it.

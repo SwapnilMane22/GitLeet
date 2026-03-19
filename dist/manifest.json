@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "GitLeet",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "description": "Sync LeetCode accepted submissions to GitHub.",
   "icons": {
     "16": "assets/icons/icon16.png",

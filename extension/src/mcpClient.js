@@ -1,4 +1,4 @@
-// MCP is required by plan. In GitLeet v0.1 this "MCP client" loads a schema
+// MCP is required by plan. In GitLeet v0.0.1 this "MCP client" loads a schema
 // mapping (JSON) from either a bundled file or a configured MCP endpoint.
 //
 // This is intentionally simple: the MCP server/tool can serve a JSON mapping at
